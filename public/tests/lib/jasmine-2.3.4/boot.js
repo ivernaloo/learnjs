@@ -1,3 +1,11 @@
+/***
+ * Excerpted from "Serverless Single Page Apps",
+ * published by The Pragmatic Bookshelf.
+ * Copyrights apply to this code. It may not be used to create training material,
+ * courses, books, articles, and the like. Contact us if you are in doubt.
+ * We make no guarantees that this code is fit for any purpose.
+ * Visit http://www.pragmaticprogrammer.com/titles/brapps for more book information.
+***/
 /**
  Starting with version 2.0, this file "boots" Jasmine, performing all of the necessary initialization before executing the loaded environment and all of a project's specs. This file should be loaded after `jasmine.js` and `jasmine_html.js`, but before any project source files or spec files are loaded. Thus this file can also be used to customize Jasmine for a project.
 

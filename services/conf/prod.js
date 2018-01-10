@@ -6,6 +6,5 @@
  * We make no guarantees that this code is fit for any purpose.
  * Visit http://www.pragmaticprogrammer.com/titles/brapps for more book information.
 ***/
-exports.echo = function(json, context) {  
-  context.succeed(["Hello from the cloud! You sent " + JSON.stringify(json)]);
-};
+exports.dynamoTableName = 'learnjs';
+exports.functionName = 'arn:aws:lambda:us-east-1:730171000947:function:learnjs_popularAnswers';

@@ -33,12 +33,7 @@ function check_node_deps() {
 
 function dev_server() {
   cd public
-  ret=`python -c 'import sys; print("%i" % (sys.hexversion<0x03000000))'`
-  if [ $ret -eq 0 ]; then
-    exec python -m http.server 9292
-  else 
-    exec python -m SimpleHTTPServer 9292
-  fi
+  exec python -m SimpleHTTPServer 9292
 }
 
 function livereload_server() {
@@ -182,17 +177,9 @@ function create_table() {
       --table-name $table_name \
       --cli-input-json "file://${table_dir}/config.json" \
       > ${table_dir}/table_info.json
-
-    echo -n "Waiting for table creation..."
-    aws --profile $profile dynamodb describe-table --table-name "$table_name" > ${table_dir}/table_info.json
-    while [[ "$(support/jsed.py ${table_dir}/table_info.json 'Table.TableStatus')" != "ACTIVE" ]]; do
-      aws --profile $profile dynamodb describe-table --table-name "$table_name" > ${table_dir}/table_info.json
-      echo -n .
-    done
-    echo "...done!"
   fi
 
-  local table_arn=$(support/jsed.py ${table_dir}/table_info.json 'Table.TableArn')
+  local table_arn=$(support/jsed.py ${table_dir}/table_info.json 'TableDescription.TableArn')
   generate_table_policy ${table_arn} > ${table_dir}/role_policy.json
   aws --profile $profile iam put-role-policy \
     --policy-document file://${table_dir}/role_policy.json \
@@ -209,7 +196,6 @@ function build_bundle() {
   cp -r node_modules dist/
   cp -r lib/* dist/
   cd dist
-  chmod -R a+r *
   zip -r archive.zip *
   mv archive.zip ..
   cd ..
@@ -258,13 +244,11 @@ function create_lambda_service() {
   while ! aws --profile $profile iam get-role --role-name ${app_name}_lambda_exec &> /dev/null; do
     echo -n .
   done
-  sleep 5 # See issue #17
   echo "...done!"
   if [[ ! -e ${service_dir}/info.json ]]; then
     aws --profile $profile lambda create-function \
       --function-name ${function_name} \
       --role ${role_arn} \
-      --runtime nodejs4.3 \
       --zip-file "fileb://services/archive.zip" \
       --handler "index.${function_name}" \
       --cli-input-json "file://${service_dir}/config.json" \
