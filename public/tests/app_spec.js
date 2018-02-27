@@ -8,24 +8,24 @@
 ***/
 describe('LearnJS', function() {
   it('can show a problem view', function() {
-    learnjs.showView('#problem-1');
-    expect($('.view-container .problem-view').length).toEqual(1);
+    learnjs.showView('#problem-1'); // show a panel
+    expect($('.view-container .problem-view').length).toEqual(1); // judge the number of view
   });
 
   it('shows the landing page view when there is no hash', function() {
-    learnjs.showView('');
-    expect($('.view-container .landing-view').length).toEqual(1);
+    learnjs.showView('');  // null panel
+    expect($('.view-container .landing-view').length).toEqual(1); // judge the number
   });
 
   it('passes the hash view parameter to the view function', function() {
-    spyOn(learnjs, 'problemView');
+    spyOn(learnjs, 'problemView'); //aspect the function
     learnjs.showView('#problem-42');
     expect(learnjs.problemView).toHaveBeenCalledWith('42');
   });
 
   it('triggers removingView event when removing the view', function() {
     spyOn(learnjs, 'triggerEvent');
-    learnjs.showView('#problem-1');
+    learnjs.showView('#problem-1'); // detect the calling function
     expect(learnjs.triggerEvent).toHaveBeenCalledWith('removingView', []);
   });
 
@@ -59,7 +59,7 @@ describe('LearnJS', function() {
   });
 
   it('can trigger events on the view', function() {
-    callback = jasmine.createSpy('callback');
+    callback = jasmine.createSpy('callback'); // create fake callback
     var div = $('<div>').bind('fooEvent', callback);
     $('.view-container').append(div);
     learnjs.triggerEvent('fooEvent', ['bar']);
