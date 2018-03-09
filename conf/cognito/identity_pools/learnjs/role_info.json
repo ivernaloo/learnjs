@@ -11,7 +11,8 @@
           "Effect": "Allow",
           "Condition": {
             "StringEquals": {
-              "cognito-identity.amazonaws.com:aud": ""
+              "cognito-identity.amazonaws.com:aud":
+                "us-east-1:71958f90-67bf-4571-aa17-6e4c1dfcb67d"
             },
             "ForAnyValue:StringLike": {
               "cognito-identity.amazonaws.com:amr": "authenticated"
@@ -21,10 +22,10 @@
         }
       ]
     },
-    "RoleId": "AROAIXDXSTH23BNKDCCBG",
-    "CreateDate": "2018-03-06T02:27:16.843Z",
-    "RoleName": "_cognito_authenticated",
+    "RoleId": "AROAJ5QOAOJOWUAORXS3S",
+    "CreateDate": "2015-12-11T02:23:13.981Z",
+    "RoleName": "learnjs_cognito_authenticated",
     "Path": "/",
-    "Arn": "arn:aws:iam::156700269849:role/_cognito_authenticated"
+    "Arn": "arn:aws:iam::730171000947:role/learnjs_cognito_authenticated"
   }
 }
