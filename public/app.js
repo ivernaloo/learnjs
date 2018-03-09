@@ -12,7 +12,7 @@ var learnjs = {
   poolId: 'us-east-1:6135424f-106c-4e65-8ae0-562027f24fd2'
 };
 
-learnjs.identity = new $.Deferred(); // only a deferred
+learnjs.identity = new $.Deferred();
 
 learnjs.problems = [
   {
@@ -27,16 +27,15 @@ learnjs.problems = [
 
 learnjs.triggerEvent = function(name, args) {
   $('.view-container>*').trigger(name, args);
-};
+}
 
-// change from sendAwsReuqest
 learnjs.sendDbRequest = function(req, retry) {
   var promise = new $.Deferred();
-  req.on('error', function(error) { // manipulate the req instance
+  req.on('error', function(error) {
     if (error.code === "CredentialsError") { 
       learnjs.identity.then(function(identity) {
         return identity.refresh().then(function() {
-          return retry(); // only retry when credentials problem
+          return retry(); 
         }, function() {
           promise.reject(resp);
         });
@@ -50,12 +49,44 @@ learnjs.sendDbRequest = function(req, retry) {
   });
   req.send();
   return promise;
+}
+
+learnjs.fetchAnswer = function(problemId) {
+  return learnjs.identity.then(function(identity) {
+    var db = new AWS.DynamoDB.DocumentClient();
+    var item = {
+      TableName: 'learnjs',
+      Key: {
+        userId: identity.id,
+        problemId: problemId
+      }
+    };
+    return learnjs.sendDbRequest(db.get(item), function() { // simple get data source
+      return learnjs.fetchAnswer(problemId);
+    })
+  });
 };
 
-// save the answer
+learnjs.countAnswers = function(problemId) {
+    return learnjs.identity.then(function(identity) {
+        var db = new AWS.DynamoDB.DocumentClient();
+        // declare count statement
+        var params = {
+            TableName: 'learnjs',
+            Select: 'COUNT',
+            FilterExpression: 'problemId = :problemId',
+            ExpressionAttributeValues: {':problemId': problemId}
+        };
+        return learnjs.sendDbRequest(db.scan(params), function() {
+            return learnjs.countAnswers(problemId);
+        })
+    });
+}
+
+
 learnjs.saveAnswer = function(problemId, answer) {
-  return learnjs.identity.then(function(identity) { // chained call
-    var db = new AWS.DynamoDB.DocumentClient(); // Dynamo Writer
+  return learnjs.identity.then(function(identity) {
+    var db = new AWS.DynamoDB.DocumentClient();
     var item = {
       TableName: 'learnjs',
       Item: {
@@ -64,8 +95,6 @@ learnjs.saveAnswer = function(problemId, answer) {
         answer: answer
       }
     };
-    //  save into DynamoDB
-    // the second parameter is retry function
     return learnjs.sendDbRequest(db.put(item), function() {
       return learnjs.saveAnswer(problemId, answer);
     })
@@ -74,7 +103,7 @@ learnjs.saveAnswer = function(problemId, answer) {
 
 learnjs.template = function(name) {
   return $('.templates .' + name).clone();
-};
+}
 
 learnjs.applyObject = function(obj, elem) {
   for (var key in obj) {
@@ -86,16 +115,15 @@ learnjs.addProfileLink = function(profile) {
   var link = learnjs.template('profile-link');
   link.find('a').text(profile.email);
   $('.signin-bar').prepend(link);
-};
+}
 
 learnjs.flashElement = function(elem, content) {
   elem.fadeOut('fast', function() {
     elem.html(content);
     elem.fadeIn();
   });
-};
+}
 
-// indicate logic
 learnjs.buildCorrectFlash = function (problemNum) {
   var correctFlash = learnjs.template('correct-flash');
   var link = correctFlash.find('a');
@@ -106,7 +134,7 @@ learnjs.buildCorrectFlash = function (problemNum) {
     link.text("You're Finished!");
   }
   return correctFlash;
-};
+}
 
 learnjs.problemView = function(data) {
   var problemNumber = parseInt(data, 10);
@@ -123,7 +151,7 @@ learnjs.problemView = function(data) {
   function checkAnswerClick() {
     if (checkAnswer()) {
       var flashContent = learnjs.buildCorrectFlash(problemNumber);
-      learnjs.flashElement(resultFlash, flashContent); // visual indicator
+      learnjs.flashElement(resultFlash, flashContent);
       learnjs.saveAnswer(problemNumber, answer.val());
     } else {
       learnjs.flashElement(resultFlash, 'Incorrect!');
@@ -140,15 +168,21 @@ learnjs.problemView = function(data) {
     });
   }
 
+  learnjs.fetchAnswer(problemNumber).then(function(data) {
+    if (data.Item) {
+      answer.val(data.Item.answer);
+    }
+  });
+
   view.find('.check-btn').click(checkAnswerClick);
   view.find('.title').text('Problem #' + problemNumber);
   learnjs.applyObject(problemData, view);
   return view;
-};
+}
 
 learnjs.landingView = function() {
   return learnjs.template('landing-view');
-};
+}
 
 learnjs.profileView = function() {
   var view = learnjs.template('profile-view');
@@ -156,7 +190,7 @@ learnjs.profileView = function() {
     view.find('.email').text(identity.email);
   });
   return view;
-};
+}
 
 learnjs.showView = function(hash) {
   var routes = {
@@ -171,7 +205,7 @@ learnjs.showView = function(hash) {
     learnjs.triggerEvent('removingView', []);
     $('.view-container').empty().append(viewFn(hashParts[1]));
   }
-};
+}
 
 learnjs.appOnReady = function() {
   window.onhashchange = function() {
@@ -179,7 +213,7 @@ learnjs.appOnReady = function() {
   };
   learnjs.showView(window.location.hash);
   learnjs.identity.done(learnjs.addProfileLink);
-};
+}
 
 learnjs.awsRefresh = function() {
   var deferred = new $.Deferred();
@@ -191,7 +225,7 @@ learnjs.awsRefresh = function() {
     }
   });
   return deferred.promise();
-};
+}
 
 function googleSignIn(googleUser) {
   var id_token = googleUser.getAuthResponse().id_token;
@@ -203,7 +237,7 @@ function googleSignIn(googleUser) {
         'accounts.google.com': id_token
       }
     })
-  });
+  })
   function refresh() {
     return gapi.auth2.getAuthInstance().signIn({
         prompt: 'login'
