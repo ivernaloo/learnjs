@@ -9,7 +9,7 @@
 "use strict";
 
 var learnjs = {
-  poolId: 'us-east-1:71958f90-67bf-4571-aa17-6e4c1dfcb67d'
+  poolId: 'us-east-1:6135424f-106c-4e65-8ae0-562027f24fd2'
 };
 
 learnjs.identity = new $.Deferred();
@@ -29,7 +29,7 @@ learnjs.triggerEvent = function(name, args) {
   $('.view-container>*').trigger(name, args);
 }
 
-learnjs.sendDbRequest = function(req, retry) {
+learnjs.sendAwsRequest = function(req, retry) {
   var promise = new $.Deferred();
   req.on('error', function(error) {
     if (error.code === "CredentialsError") { 
@@ -51,6 +51,50 @@ learnjs.sendDbRequest = function(req, retry) {
   return promise;
 }
 
+learnjs.popularAnswers = function(problemId) {
+  return learnjs.identity.then(function() {
+    var lambda = new AWS.Lambda();
+    var params = {
+      FunctionName: 'learnjs_popularAnswers',
+      Payload: JSON.stringify({problemNumber: problemId})
+    };
+    return learnjs.sendAwsRequest(lambda.invoke(params), function() {
+      return learnjs.popularAnswers(problemId);
+    });
+  });
+}
+
+learnjs.fetchAnswer = function(problemId) {
+  return learnjs.identity.then(function(identity) {
+    var db = new AWS.DynamoDB.DocumentClient();
+    var item = {
+      TableName: 'learnjs',
+      Key: {
+        userId: identity.id,
+        problemId: problemId
+      }
+    };
+    return learnjs.sendAwsRequest(db.get(item), function() {
+      return learnjs.fetchAnswer(problemId);
+    })
+  });
+};
+
+learnjs.countAnswers = function(problemId) {
+  return learnjs.identity.then(function(identity) {
+    var db = new AWS.DynamoDB.DocumentClient();
+    var params = {
+      TableName: 'learnjs',
+      Select: 'COUNT',
+      FilterExpression: 'problemId = :problemId',
+      ExpressionAttributeValues: {':problemId': problemId}
+    };
+    return learnjs.sendAwsRequest(db.scan(params), function() {
+      return learnjs.countAnswers(problemId);
+    })
+  });
+}
+
 learnjs.saveAnswer = function(problemId, answer) {
   return learnjs.identity.then(function(identity) {
     var db = new AWS.DynamoDB.DocumentClient();
@@ -62,7 +106,7 @@ learnjs.saveAnswer = function(problemId, answer) {
         answer: answer
       }
     };
-    return learnjs.sendDbRequest(db.put(item), function() {
+    return learnjs.sendAwsRequest(db.put(item), function() {
       return learnjs.saveAnswer(problemId, answer);
     })
   });
@@ -111,18 +155,28 @@ learnjs.problemView = function(data) {
   var answer = view.find('.answer');
 
   function checkAnswer() {
+    var def = $.Deferred();
     var test = problemData.code.replace('__', answer.val()) + '; problem();';
-    return eval(test);
+    var worker = new Worker('worker.js');
+    worker.onmessage = function(e) {
+      if (e.data) {
+        def.resolve(e.data);
+      } else {
+        def.reject();
+      }
+    }
+    worker.postMessage(test);
+    return def;
   }
 
   function checkAnswerClick() {
-    if (checkAnswer()) {
+    checkAnswer().done(function() {
       var flashContent = learnjs.buildCorrectFlash(problemNumber);
       learnjs.flashElement(resultFlash, flashContent);
       learnjs.saveAnswer(problemNumber, answer.val());
-    } else {
+    }).fail(function() {
       learnjs.flashElement(resultFlash, 'Incorrect!');
-    }
+    });
     return false;
   }
 
@@ -134,6 +188,12 @@ learnjs.problemView = function(data) {
       buttonItem.remove();
     });
   }
+
+  learnjs.fetchAnswer(problemNumber).then(function(data) {
+    if (data.Item) {
+      answer.val(data.Item.answer);
+    }
+  });
 
   view.find('.check-btn').click(checkAnswerClick);
   view.find('.title').text('Problem #' + problemNumber);
@@ -147,6 +207,7 @@ learnjs.landingView = function() {
 
 learnjs.profileView = function() {
   var view = learnjs.template('profile-view');
+  // after login
   learnjs.identity.done(function(identity) {
     view.find('.email').text(identity.email);
   });
@@ -170,14 +231,14 @@ learnjs.showView = function(hash) {
 
 learnjs.appOnReady = function() {
   window.onhashchange = function() {
-    learnjs.showView(window.location.hash);
+    learnjs.showView(window.location.hash); // change through hash id
   };
-  learnjs.showView(window.location.hash);
+  learnjs.showView(window.location.hash); // ready when loaded
   learnjs.identity.done(learnjs.addProfileLink);
-}
+};
 
 learnjs.awsRefresh = function() {
-  var deferred = new $.Deferred();
+  var deferred = new $.Deferred(); // async?
   AWS.config.credentials.refresh(function(err) {
     if (err) {
       deferred.reject(err);
